@@ -6,69 +6,152 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    <!-- Snow particles background -->
+    <div class="snow-container" id="snowContainer"></div>
+    
     <div class="container">
-        <h1>Skeleton Archive</h1>
+        <header class="header">
+            <h1>Skeleton Archive</h1>
+        </header>
         
-        <div class="song-grid">
-            <!-- Song 1 -->
-            <div class="song-item" data-song="https://skeleton-archive.github.io/Songs/angel%20-%20skeleton%20archive.mp3" data-title="angel">
-                <img src="https://i1.sndcdn.com/artworks-q92EkKpSF5yEVBv4-SjhCxQ-t500x500.jpg" alt="angel" class="song-image">
-                <div class="tooltip">angel</div>
-            </div>
-            
-            <!-- Song 2 -->
-            <div class="song-item" data-song="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3" data-title="SoundHelix Song 2">
-                <img src="https://via.placeholder.com/200x200/4ECDC4/FFFFFF?text=Song+2" alt="Song 2" class="song-image">
-                <div class="tooltip">SoundHelix Song 2</div>
-            </div>
-            
-            <!-- Song 3 -->
-            <div class="song-item" data-song="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3" data-title="SoundHelix Song 3">
-                <img src="https://via.placeholder.com/200x200/45B7D1/FFFFFF?text=Song+3" alt="Song 3" class="song-image">
-                <div class="tooltip">SoundHelix Song 3</div>
-            </div>
-            
-            <!-- Song 4 -->
-            <div class="song-item" data-song="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3" data-title="SoundHelix Song 4">
-                <img src="https://via.placeholder.com/200x200/F7DC6F/FFFFFF?text=Song+4" alt="Song 4" class="song-image">
-                <div class="tooltip">SoundHelix Song 4</div>
-            </div>
-        </div>
-        
-        <!-- Custom Audio Player -->
-        <div class="audio-player" id="audioPlayer">
-            <div class="player-info">
-                <img id="currentSongImage" src="" alt="Current Song" class="current-song-image">
-                <div class="song-details">
-                    <h3 id="currentSongTitle">Select a song to play</h3>
-                    <div class="time-info">
-                        <span id="currentTime">0:00</span>
-                        <span id="duration">0:00</span>
+        <main class="main-content">
+            <div class="songs-container">
+                <div class="song-grid" id="songGrid">
+                    <!-- Song 1 -->
+                    <div class="song-item" data-song="https://skeleton-archive.github.io/Songs/angel%20-%20skeleton%20archive.mp3" data-title="Angel">
+                        <div class="song-box">
+                            <img src="https://i.scdn.co/image/ab67616d0000b27356a6661837ae6a1af2cc4360" alt="Angel" class="song-image">
+                            <div class="song-info">
+                                <h3 class="song-title">Angel</h3>
+                            </div>
+                        </div>
+                        <div class="tooltip">Angel</div>
+                    </div>
+                    
+                    <!-- Song 2 -->
+                    <div class="song-item" data-song="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3" data-title="SoundHelix Song 2">
+                        <div class="song-box">
+                            <img src="https://via.placeholder.com/120x120/666666/FFFFFF?text=Song+2" alt="Song 2" class="song-image">
+                            <div class="song-info">
+                                <h3 class="song-title">SoundHelix Song 2</h3>
+                            </div>
+                        </div>
+                        <div class="tooltip">SoundHelix Song 2</div>
+                    </div>
+                    
+                    <!-- Song 3 -->
+                    <div class="song-item" data-song="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3" data-title="SoundHelix Song 3">
+                        <div class="song-box">
+                            <img src="https://via.placeholder.com/120x120/999999/FFFFFF?text=Song+3" alt="Song 3" class="song-image">
+                            <div class="song-info">
+                                <h3 class="song-title">SoundHelix Song 3</h3>
+                            </div>
+                        </div>
+                        <div class="tooltip">SoundHelix Song 3</div>
+                    </div>
+                    
+                    <!-- Song 4 -->
+                    <div class="song-item" data-song="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3" data-title="SoundHelix Song 4">
+                        <div class="song-box">
+                            <img src="https://via.placeholder.com/120x120/CCCCCC/000000?text=Song+4" alt="Song 4" class="song-image">
+                            <div class="song-info">
+                                <h3 class="song-title">SoundHelix Song 4</h3>
+                            </div>
+                        </div>
+                        <div class="tooltip">SoundHelix Song 4</div>
+                    </div>
+                    
+                    <!-- Song 5 -->
+                    <div class="song-item" data-song="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3" data-title="SoundHelix Song 5">
+                        <div class="song-box">
+                            <img src="https://via.placeholder.com/120x120/444444/FFFFFF?text=Song+5" alt="Song 5" class="song-image">
+                            <div class="song-info">
+                                <h3 class="song-title">SoundHelix Song 5</h3>
+                            </div>
+                        </div>
+                        <div class="tooltip">SoundHelix Song 5</div>
+                    </div>
+                    
+                    <!-- Song 6 -->
+                    <div class="song-item" data-song="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3" data-title="SoundHelix Song 6">
+                        <div class="song-box">
+                            <img src="https://via.placeholder.com/120x120/777777/FFFFFF?text=Song+6" alt="Song 6" class="song-image">
+                            <div class="song-info">
+                                <h3 class="song-title">SoundHelix Song 6</h3>
+                            </div>
+                        </div>
+                        <div class="tooltip">SoundHelix Song 6</div>
+                    </div>
+                    
+                    <!-- Song 7 -->
+                    <div class="song-item" data-song="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-7.mp3" data-title="SoundHelix Song 7">
+                        <div class="song-box">
+                            <img src="https://via.placeholder.com/120x120/AAAAAA/000000?text=Song+7" alt="Song 7" class="song-image">
+                            <div class="song-info">
+                                <h3 class="song-title">SoundHelix Song 7</h3>
+                            </div>
+                        </div>
+                        <div class="tooltip">SoundHelix Song 7</div>
+                    </div>
+                    
+                    <!-- Song 8 -->
+                    <div class="song-item" data-song="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3" data-title="SoundHelix Song 8">
+                        <div class="song-box">
+                            <img src="https://via.placeholder.com/120x120/555555/FFFFFF?text=Song+8" alt="Song 8" class="song-image">
+                            <div class="song-info">
+                                <h3 class="song-title">SoundHelix Song 8</h3>
+                            </div>
+                        </div>
+                        <div class="tooltip">SoundHelix Song 8</div>
                     </div>
                 </div>
             </div>
-            
-            <div class="player-controls">
-                <button id="playPauseBtn" class="control-btn">
-                    <span class="play-icon">▶</span>
-                    <span class="pause-icon" style="display: none;">⏸</span>
-                </button>
-                <button id="stopBtn" class="control-btn">⏹</button>
-            </div>
-            
-            <div class="progress-container">
-                <div class="progress-bar" id="progressBar">
-                    <div class="progress-fill" id="progressFill"></div>
+        </main>
+    </div>
+    
+    <!-- Fixed Audio Player at Bottom -->
+    <div class="audio-player-fixed" id="audioPlayer">
+        <div class="player-content">
+            <div class="player-left">
+                <img id="currentSongImage" src="https://via.placeholder.com/60x60/333333/FFFFFF?text=♪" alt="Current Song" class="current-song-image">
+                <div class="song-details">
+                    <h3 id="currentSongTitle">Select a song to play</h3>
                 </div>
             </div>
             
-            <div class="volume-container">
-                <span class="volume-icon">🔊</span>
-                <input type="range" id="volumeSlider" min="0" max="100" value="50" class="volume-slider">
+            <div class="player-center">
+                <div class="player-controls">
+                    <button id="prevBtn" class="control-btn">
+                        <span>⏮</span>
+                    </button>
+                    <button id="playPauseBtn" class="control-btn play-btn">
+                        <span class="play-icon">▶</span>
+                        <span class="pause-icon" style="display: none;">⏸</span>
+                    </button>
+                    <button id="nextBtn" class="control-btn">
+                        <span>⏭</span>
+                    </button>
+                </div>
+                
+                <div class="progress-container">
+                    <span id="currentTime" class="time">0:00</span>
+                    <div class="progress-bar" id="progressBar">
+                        <div class="progress-fill" id="progressFill"></div>
+                        <div class="progress-handle" id="progressHandle"></div>
+                    </div>
+                    <span id="duration" class="time">0:00</span>
+                </div>
             </div>
             
-            <audio id="audioElement"></audio>
+            <div class="player-right">
+                <div class="volume-container">
+                    <button class="volume-btn" id="volumeBtn">🔊</button>
+                    <input type="range" id="volumeSlider" min="0" max="100" value="50" class="volume-slider">
+                </div>
+            </div>
         </div>
+        
+        <audio id="audioElement"></audio>
     </div>
     
     <script src="script.js"></script>
