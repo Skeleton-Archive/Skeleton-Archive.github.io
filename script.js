@@ -23,6 +23,7 @@ class MusicPlayer {
         this.songs = [];
         this.isMuted = false;
         this.previousVolume = 50;
+        this.isDragging = false;
         
         this.initializeSongs();
         this.initializeEventListeners();
@@ -65,9 +66,18 @@ class MusicPlayer {
             this.nextSong();
         });
         
-        // Progress bar
+        // Progress bar events
         this.progressBar.addEventListener('click', (e) => {
+            if (!this.isDragging) {
+                this.seekTo(e);
+            }
+        });
+        
+        this.progressBar.addEventListener('mousedown', (e) => {
+            this.isDragging = true;
             this.seekTo(e);
+            document.addEventListener('mousemove', this.handleProgressDrag.bind(this));
+            document.addEventListener('mouseup', this.handleProgressDragEnd.bind(this));
         });
         
         // Volume slider
@@ -86,7 +96,9 @@ class MusicPlayer {
         });
         
         this.audio.addEventListener('timeupdate', () => {
-            this.updateProgress();
+            if (!this.isDragging) {
+                this.updateProgress();
+            }
         });
         
         this.audio.addEventListener('ended', () => {
@@ -95,6 +107,7 @@ class MusicPlayer {
         
         this.audio.addEventListener('loadstart', () => {
             this.currentSongTitle.textContent = 'Loading...';
+            this.currentSongArtist.textContent = 'Please wait...';
         });
         
         this.audio.addEventListener('canplay', () => {
@@ -104,10 +117,28 @@ class MusicPlayer {
             }
         });
         
+        this.audio.addEventListener('error', (e) => {
+            console.error('Audio error:', e);
+            this.showError('Failed to load audio file');
+            this.pauseSong();
+        });
+        
         // Keyboard controls
         document.addEventListener('keydown', (e) => {
             this.handleKeyboardControls(e);
         });
+    }
+    
+    handleProgressDrag(e) {
+        if (this.isDragging) {
+            this.seekTo(e);
+        }
+    }
+    
+    handleProgressDragEnd() {
+        this.isDragging = false;
+        document.removeEventListener('mousemove', this.handleProgressDrag.bind(this));
+        document.removeEventListener('mouseup', this.handleProgressDragEnd.bind(this));
     }
     
     loadSong(index) {
@@ -122,7 +153,7 @@ class MusicPlayer {
         this.currentSong = this.songs[index];
         
         // Add active and playing classes
-        this.currentSong.element.classList.add('active', 'playing');
+        this.currentSong.element.classList.add('active');
         
         this.audio.src = this.currentSong.url;
         this.currentSongTitle.textContent = this.currentSong.title;
@@ -132,10 +163,15 @@ class MusicPlayer {
         // Reset progress
         this.progressFill.style.width = '0%';
         this.currentTime.textContent = '0:00';
+        this.duration.textContent = '0:00';
         
-        // Auto play the song
+        // Load and play the song
         this.audio.load();
-        this.playSong();
+        
+        // Wait for the audio to be ready before playing
+        this.audio.addEventListener('canplaythrough', () => {
+            this.playSong();
+        }, { once: true });
     }
     
     togglePlayPause() {
@@ -156,15 +192,22 @@ class MusicPlayer {
     playSong() {
         if (!this.currentSong) return;
         
-        this.audio.play().then(() => {
-            this.isPlaying = true;
-            this.playIcon.style.display = 'none';
-            this.pauseIcon.style.display = 'inline';
-            this.currentSong.element.classList.add('playing');
-        }).catch(error => {
-            console.error('Error playing audio:', error);
-            this.showError('Error playing the song. Please try another one.');
-        });
+        const playPromise = this.audio.play();
+        
+        if (playPromise !== undefined) {
+            playPromise.then(() => {
+                this.isPlaying = true;
+                this.playIcon.style.display = 'none';
+                this.pauseIcon.style.display = 'inline';
+                this.currentSong.element.classList.add('playing');
+            }).catch(error => {
+                console.error('Error playing audio:', error);
+                this.showError('Error playing the song. Please try another one.');
+                this.isPlaying = false;
+                this.playIcon.style.display = 'inline';
+                this.pauseIcon.style.display = 'none';
+            });
+        }
     }
     
     pauseSong() {
@@ -198,23 +241,30 @@ class MusicPlayer {
     }
     
     seekTo(e) {
-        if (!this.currentSong || !this.audio.duration) return;
+        if (!this.currentSong || !this.audio.duration || isNaN(this.audio.duration)) {
+            return;
+        }
         
         const rect = this.progressBar.getBoundingClientRect();
         const clickX = e.clientX - rect.left;
         const width = rect.width;
-        const percentage = clickX / width;
+        const percentage = Math.max(0, Math.min(1, clickX / width));
         
-        this.audio.currentTime = percentage * this.audio.duration;
+        const newTime = percentage * this.audio.duration;
+        this.audio.currentTime = newTime;
+        
+        // Update progress immediately
+        this.updateProgress();
     }
     
     setVolume(value) {
-        this.audio.volume = value / 100;
-        this.updateVolumeIcon(value);
+        const volume = Math.max(0, Math.min(100, value));
+        this.audio.volume = volume / 100;
+        this.updateVolumeIcon(volume);
         
-        if (value > 0) {
+        if (volume > 0) {
             this.isMuted = false;
-            this.previousVolume = value;
+            this.previousVolume = volume;
         }
     }
     
@@ -242,19 +292,28 @@ class MusicPlayer {
     }
     
     updateProgress() {
-        if (!this.audio.duration) return;
+        if (!this.audio.duration || isNaN(this.audio.duration) || isNaN(this.audio.currentTime)) {
+            return;
+        }
         
         const percentage = (this.audio.currentTime / this.audio.duration) * 100;
-        this.progressFill.style.width = percentage + '%';
+        this.progressFill.style.width = Math.max(0, Math.min(100, percentage)) + '%';
         this.currentTime.textContent = this.formatTime(this.audio.currentTime);
+        
+        // Update duration if it's not set
+        if (this.duration.textContent === '0:00' || this.duration.textContent === '') {
+            this.updateDuration();
+        }
     }
     
     updateDuration() {
-        this.duration.textContent = this.formatTime(this.audio.duration);
+        if (this.audio.duration && !isNaN(this.audio.duration)) {
+            this.duration.textContent = this.formatTime(this.audio.duration);
+        }
     }
     
     formatTime(seconds) {
-        if (isNaN(seconds)) return '0:00';
+        if (isNaN(seconds) || seconds < 0) return '0:00';
         
         const minutes = Math.floor(seconds / 60);
         const remainingSeconds = Math.floor(seconds % 60);
@@ -262,7 +321,11 @@ class MusicPlayer {
     }
     
     handleKeyboardControls(e) {
-        // Prevent default if we're handling the key
+        // Only handle keys if not typing in an input
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+            return;
+        }
+        
         switch(e.code) {
             case 'Space':
                 e.preventDefault();
@@ -270,11 +333,21 @@ class MusicPlayer {
                 break;
             case 'ArrowLeft':
                 e.preventDefault();
-                this.previousSong();
+                if (e.shiftKey) {
+                    // Seek backward 10 seconds
+                    this.audio.currentTime = Math.max(0, this.audio.currentTime - 10);
+                } else {
+                    this.previousSong();
+                }
                 break;
             case 'ArrowRight':
                 e.preventDefault();
-                this.nextSong();
+                if (e.shiftKey) {
+                    // Seek forward 10 seconds
+                    this.audio.currentTime = Math.min(this.audio.duration, this.audio.currentTime + 10);
+                } else {
+                    this.nextSong();
+                }
                 break;
             case 'ArrowUp':
                 e.preventDefault();
@@ -298,8 +371,13 @@ class MusicPlayer {
     }
     
     showError(message) {
+        // Remove existing error messages
+        const existingErrors = document.querySelectorAll('.error-notification');
+        existingErrors.forEach(error => error.remove());
+        
         // Create a simple error notification
         const errorDiv = document.createElement('div');
+        errorDiv.className = 'error-notification';
         errorDiv.style.cssText = `
             position: fixed;
             top: 20px;
@@ -311,12 +389,16 @@ class MusicPlayer {
             z-index: 10000;
             font-size: 14px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            animation: slideIn 0.3s ease;
         `;
         errorDiv.textContent = message;
         document.body.appendChild(errorDiv);
         
         setTimeout(() => {
-            errorDiv.remove();
+            if (errorDiv.parentNode) {
+                errorDiv.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => errorDiv.remove(), 300);
+            }
         }, 3000);
     }
     
@@ -325,7 +407,9 @@ class MusicPlayer {
         const snowflakeCount = 50;
         
         for (let i = 0; i < snowflakeCount; i++) {
-            this.createSnowflake(snowContainer);
+            setTimeout(() => {
+                this.createSnowflake(snowContainer);
+            }, i * 100);
         }
         
         // Create new snowflakes periodically
@@ -420,12 +504,34 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
     
-    // Add CSS for ripple animation
+    // Add CSS for ripple animation and error notifications
     const style = document.createElement('style');
     style.textContent = `
         @keyframes ripple {
             to {
                 transform: scale(4);
+                opacity: 0;
+            }
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(100%);
                 opacity: 0;
             }
         }
