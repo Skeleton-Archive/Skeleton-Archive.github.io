@@ -2,32 +2,51 @@ class MusicPlayer {
     constructor() {
         this.audio = document.getElementById('audioElement');
         this.playPauseBtn = document.getElementById('playPauseBtn');
-        this.stopBtn = document.getElementById('stopBtn');
+        this.prevBtn = document.getElementById('prevBtn');
+        this.nextBtn = document.getElementById('nextBtn');
         this.progressBar = document.getElementById('progressBar');
         this.progressFill = document.getElementById('progressFill');
+        this.progressHandle = document.getElementById('progressHandle');
         this.volumeSlider = document.getElementById('volumeSlider');
+        this.volumeBtn = document.getElementById('volumeBtn');
         this.currentTime = document.getElementById('currentTime');
         this.duration = document.getElementById('duration');
         this.currentSongTitle = document.getElementById('currentSongTitle');
+        this.currentSongArtist = document.getElementById('currentSongArtist');
         this.currentSongImage = document.getElementById('currentSongImage');
         this.playIcon = document.querySelector('.play-icon');
         this.pauseIcon = document.querySelector('.pause-icon');
         
         this.isPlaying = false;
         this.currentSong = null;
+        this.currentIndex = -1;
+        this.songs = [];
+        this.isMuted = false;
+        this.previousVolume = 50;
         
+        this.initializeSongs();
         this.initializeEventListeners();
         this.setVolume(50);
+        this.createSnowEffect();
+    }
+    
+    initializeSongs() {
+        const songItems = document.querySelectorAll('.song-item');
+        this.songs = Array.from(songItems).map((item, index) => ({
+            element: item,
+            url: item.dataset.song,
+            title: item.dataset.title,
+            artist: item.querySelector('.song-artist').textContent,
+            image: item.querySelector('.song-image').src,
+            index: index
+        }));
     }
     
     initializeEventListeners() {
         // Song selection
-        document.querySelectorAll('.song-item').forEach(item => {
-            item.addEventListener('click', (e) => {
-                const songUrl = item.dataset.song;
-                const songTitle = item.dataset.title;
-                const songImage = item.querySelector('.song-image').src;
-                this.loadSong(songUrl, songTitle, songImage);
+        this.songs.forEach((song, index) => {
+            song.element.addEventListener('click', () => {
+                this.loadSong(index);
             });
         });
         
@@ -36,9 +55,14 @@ class MusicPlayer {
             this.togglePlayPause();
         });
         
-        // Stop button
-        this.stopBtn.addEventListener('click', () => {
-            this.stopSong();
+        // Previous button
+        this.prevBtn.addEventListener('click', () => {
+            this.previousSong();
+        });
+        
+        // Next button
+        this.nextBtn.addEventListener('click', () => {
+            this.nextSong();
         });
         
         // Progress bar
@@ -51,6 +75,11 @@ class MusicPlayer {
             this.setVolume(e.target.value);
         });
         
+        // Volume button (mute/unmute)
+        this.volumeBtn.addEventListener('click', () => {
+            this.toggleMute();
+        });
+        
         // Audio events
         this.audio.addEventListener('loadedmetadata', () => {
             this.updateDuration();
@@ -61,7 +90,7 @@ class MusicPlayer {
         });
         
         this.audio.addEventListener('ended', () => {
-            this.onSongEnd();
+            this.nextSong();
         });
         
         this.audio.addEventListener('loadstart', () => {
@@ -71,16 +100,34 @@ class MusicPlayer {
         this.audio.addEventListener('canplay', () => {
             if (this.currentSong) {
                 this.currentSongTitle.textContent = this.currentSong.title;
+                this.currentSongArtist.textContent = this.currentSong.artist;
             }
+        });
+        
+        // Keyboard controls
+        document.addEventListener('keydown', (e) => {
+            this.handleKeyboardControls(e);
         });
     }
     
-    loadSong(url, title, image) {
-        this.currentSong = { url, title, image };
-        this.audio.src = url;
-        this.currentSongTitle.textContent = title;
-        this.currentSongImage.src = image;
-        this.currentSongImage.style.display = 'block';
+    loadSong(index) {
+        if (index < 0 || index >= this.songs.length) return;
+        
+        // Remove playing class from all songs
+        this.songs.forEach(song => {
+            song.element.classList.remove('playing', 'active');
+        });
+        
+        this.currentIndex = index;
+        this.currentSong = this.songs[index];
+        
+        // Add active and playing classes
+        this.currentSong.element.classList.add('active', 'playing');
+        
+        this.audio.src = this.currentSong.url;
+        this.currentSongTitle.textContent = this.currentSong.title;
+        this.currentSongArtist.textContent = this.currentSong.artist;
+        this.currentSongImage.src = this.currentSong.image;
         
         // Reset progress
         this.progressFill.style.width = '0%';
@@ -93,7 +140,9 @@ class MusicPlayer {
     
     togglePlayPause() {
         if (!this.currentSong) {
-            alert('Please select a song first!');
+            if (this.songs.length > 0) {
+                this.loadSong(0);
+            }
             return;
         }
         
@@ -111,9 +160,10 @@ class MusicPlayer {
             this.isPlaying = true;
             this.playIcon.style.display = 'none';
             this.pauseIcon.style.display = 'inline';
+            this.currentSong.element.classList.add('playing');
         }).catch(error => {
             console.error('Error playing audio:', error);
-            alert('Error playing the song. Please try another one.');
+            this.showError('Error playing the song. Please try another one.');
         });
     }
     
@@ -122,16 +172,29 @@ class MusicPlayer {
         this.isPlaying = false;
         this.playIcon.style.display = 'inline';
         this.pauseIcon.style.display = 'none';
+        if (this.currentSong) {
+            this.currentSong.element.classList.remove('playing');
+        }
     }
     
-    stopSong() {
-        this.audio.pause();
-        this.audio.currentTime = 0;
-        this.isPlaying = false;
-        this.playIcon.style.display = 'inline';
-        this.pauseIcon.style.display = 'none';
-        this.progressFill.style.width = '0%';
-        this.currentTime.textContent = '0:00';
+    previousSong() {
+        if (this.songs.length === 0) return;
+        
+        let newIndex = this.currentIndex - 1;
+        if (newIndex < 0) {
+            newIndex = this.songs.length - 1;
+        }
+        this.loadSong(newIndex);
+    }
+    
+    nextSong() {
+        if (this.songs.length === 0) return;
+        
+        let newIndex = this.currentIndex + 1;
+        if (newIndex >= this.songs.length) {
+            newIndex = 0;
+        }
+        this.loadSong(newIndex);
     }
     
     seekTo(e) {
@@ -147,6 +210,35 @@ class MusicPlayer {
     
     setVolume(value) {
         this.audio.volume = value / 100;
+        this.updateVolumeIcon(value);
+        
+        if (value > 0) {
+            this.isMuted = false;
+            this.previousVolume = value;
+        }
+    }
+    
+    toggleMute() {
+        if (this.isMuted) {
+            this.setVolume(this.previousVolume);
+            this.volumeSlider.value = this.previousVolume;
+            this.isMuted = false;
+        } else {
+            this.previousVolume = this.volumeSlider.value;
+            this.setVolume(0);
+            this.volumeSlider.value = 0;
+            this.isMuted = true;
+        }
+    }
+    
+    updateVolumeIcon(volume) {
+        if (volume == 0 || this.isMuted) {
+            this.volumeBtn.textContent = '🔇';
+        } else if (volume < 50) {
+            this.volumeBtn.textContent = '🔉';
+        } else {
+            this.volumeBtn.textContent = '🔊';
+        }
     }
     
     updateProgress() {
@@ -169,13 +261,105 @@ class MusicPlayer {
         return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
     }
     
-    onSongEnd() {
-        this.isPlaying = false;
-        this.playIcon.style.display = 'inline';
-        this.pauseIcon.style.display = 'none';
-        this.progressFill.style.width = '0%';
-        this.audio.currentTime = 0;
-        this.currentTime.textContent = '0:00';
+    handleKeyboardControls(e) {
+        // Prevent default if we're handling the key
+        switch(e.code) {
+            case 'Space':
+                e.preventDefault();
+                this.togglePlayPause();
+                break;
+            case 'ArrowLeft':
+                e.preventDefault();
+                this.previousSong();
+                break;
+            case 'ArrowRight':
+                e.preventDefault();
+                this.nextSong();
+                break;
+            case 'ArrowUp':
+                e.preventDefault();
+                const currentVol = parseInt(this.volumeSlider.value);
+                const newVolUp = Math.min(100, currentVol + 10);
+                this.volumeSlider.value = newVolUp;
+                this.setVolume(newVolUp);
+                break;
+            case 'ArrowDown':
+                e.preventDefault();
+                const currentVolDown = parseInt(this.volumeSlider.value);
+                const newVolDown = Math.max(0, currentVolDown - 10);
+                this.volumeSlider.value = newVolDown;
+                this.setVolume(newVolDown);
+                break;
+            case 'KeyM':
+                e.preventDefault();
+                this.toggleMute();
+                break;
+        }
+    }
+    
+    showError(message) {
+        // Create a simple error notification
+        const errorDiv = document.createElement('div');
+        errorDiv.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #ff4444;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            z-index: 10000;
+            font-size: 14px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        `;
+        errorDiv.textContent = message;
+        document.body.appendChild(errorDiv);
+        
+        setTimeout(() => {
+            errorDiv.remove();
+        }, 3000);
+    }
+    
+    createSnowEffect() {
+        const snowContainer = document.getElementById('snowContainer');
+        const snowflakeCount = 50;
+        
+        for (let i = 0; i < snowflakeCount; i++) {
+            this.createSnowflake(snowContainer);
+        }
+        
+        // Create new snowflakes periodically
+        setInterval(() => {
+            if (snowContainer.children.length < snowflakeCount) {
+                this.createSnowflake(snowContainer);
+            }
+        }, 300);
+    }
+    
+    createSnowflake(container) {
+        const snowflake = document.createElement('div');
+        snowflake.classList.add('snowflake');
+        snowflake.innerHTML = '❄';
+        
+        // Random properties
+        const startPositionLeft = Math.random() * 100;
+        const animationDuration = Math.random() * 3 + 2; // 2-5 seconds
+        const opacity = Math.random() * 0.6 + 0.4; // 0.4-1
+        const size = Math.random() * 0.8 + 0.8; // 0.8-1.6em
+        
+        snowflake.style.left = startPositionLeft + '%';
+        snowflake.style.animationDuration = animationDuration + 's';
+        snowflake.style.opacity = opacity;
+        snowflake.style.fontSize = size + 'em';
+        
+        container.appendChild(snowflake);
+        
+        // Remove snowflake after animation
+        setTimeout(() => {
+            if (snowflake.parentNode) {
+                snowflake.remove();
+            }
+        }, animationDuration * 1000);
     }
 }
 
@@ -184,16 +368,67 @@ document.addEventListener('DOMContentLoaded', () => {
     new MusicPlayer();
 });
 
-// Add some visual feedback for song selection
+// Add smooth scrolling for song grid
 document.addEventListener('DOMContentLoaded', () => {
-    const songItems = document.querySelectorAll('.song-item');
+    const songsContainer = document.querySelector('.songs-container');
     
-    songItems.forEach(item => {
-        item.addEventListener('click', () => {
-            // Remove active class from all items
-            songItems.forEach(i => i.classList.remove('active'));
-            // Add active class to clicked item
-            item.classList.add('active');
+    // Add scroll behavior
+    let isScrolling = false;
+    songsContainer.addEventListener('scroll', () => {
+        if (!isScrolling) {
+            window.requestAnimationFrame(() => {
+                // Add any scroll-based animations here if needed
+                isScrolling = false;
+            });
+            isScrolling = true;
+        }
+    });
+});
+
+// Add visual feedback for interactions
+document.addEventListener('DOMContentLoaded', () => {
+    // Add ripple effect to buttons
+    const buttons = document.querySelectorAll('.control-btn');
+    buttons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            const ripple = document.createElement('span');
+            const rect = this.getBoundingClientRect();
+            const size = Math.max(rect.width, rect.height);
+            const x = e.clientX - rect.left - size / 2;
+            const y = e.clientY - rect.top - size / 2;
+            
+            ripple.style.cssText = `
+                position: absolute;
+                width: ${size}px;
+                height: ${size}px;
+                left: ${x}px;
+                top: ${y}px;
+                background: rgba(255,255,255,0.3);
+                border-radius: 50%;
+                transform: scale(0);
+                animation: ripple 0.6s linear;
+                pointer-events: none;
+            `;
+            
+            this.style.position = 'relative';
+            this.style.overflow = 'hidden';
+            this.appendChild(ripple);
+            
+            setTimeout(() => {
+                ripple.remove();
+            }, 600);
         });
     });
+    
+    // Add CSS for ripple animation
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes ripple {
+            to {
+                transform: scale(4);
+                opacity: 0;
+            }
+        }
+    `;
+    document.head.appendChild(style);
 });
