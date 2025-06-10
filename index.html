@@ -1,1 +1,77 @@
-
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Custom Music Player</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>My Music Collection</h1>
+        
+        <div class="song-grid">
+            <!-- Song 1 -->
+            <div class="song-item" data-song="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" data-title="SoundHelix Song 1">
+                <img src="https://via.placeholder.com/200x200/FF6B6B/FFFFFF?text=Song+1" alt="Song 1" class="song-image">
+                <div class="tooltip">SoundHelix Song 1</div>
+            </div>
+            
+            <!-- Song 2 -->
+            <div class="song-item" data-song="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3" data-title="SoundHelix Song 2">
+                <img src="https://via.placeholder.com/200x200/4ECDC4/FFFFFF?text=Song+2" alt="Song 2" class="song-image">
+                <div class="tooltip">SoundHelix Song 2</div>
+            </div>
+            
+            <!-- Song 3 -->
+            <div class="song-item" data-song="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3" data-title="SoundHelix Song 3">
+                <img src="https://via.placeholder.com/200x200/45B7D1/FFFFFF?text=Song+3" alt="Song 3" class="song-image">
+                <div class="tooltip">SoundHelix Song 3</div>
+            </div>
+            
+            <!-- Song 4 -->
+            <div class="song-item" data-song="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3" data-title="SoundHelix Song 4">
+                <img src="https://via.placeholder.com/200x200/F7DC6F/FFFFFF?text=Song+4" alt="Song 4" class="song-image">
+                <div class="tooltip">SoundHelix Song 4</div>
+            </div>
+        </div>
+        
+        <!-- Custom Audio Player -->
+        <div class="audio-player" id="audioPlayer">
+            <div class="player-info">
+                <img id="currentSongImage" src="" alt="Current Song" class="current-song-image">
+                <div class="song-details">
+                    <h3 id="currentSongTitle">Select a song to play</h3>
+                    <div class="time-info">
+                        <span id="currentTime">0:00</span>
+                        <span id="duration">0:00</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="player-controls">
+                <button id="playPauseBtn" class="control-btn">
+                    <span class="play-icon">▶</span>
+                    <span class="pause-icon" style="display: none;">⏸</span>
+                </button>
+                <button id="stopBtn" class="control-btn">⏹</button>
+            </div>
+            
+            <div class="progress-container">
+                <div class="progress-bar" id="progressBar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+            </div>
+            
+            <div class="volume-container">
+                <span class="volume-icon">🔊</span>
+                <input type="range" id="volumeSlider" min="0" max="100" value="50" class="volume-slider">
+            </div>
+            
+            <audio id="audioElement"></audio>
+        </div>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>
