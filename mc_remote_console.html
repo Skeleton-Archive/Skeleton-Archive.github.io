@@ -20,14 +20,14 @@
     width: 100%; padding: 6px; font-size: 14px;
     border-radius: 4px; border: 1px solid #444; background: #121212; color: white;
   }
-  #btnRestart, #btnAllRam {
+  #btnRestart, #btnAllRam, #btnSaveAddress {
     margin-top: 20px; padding: 10px; font-size: 16px; cursor: pointer; border: none; border-radius: 4px; color: white;
   }
   #btnRestart { background: #d9534f; }
   #btnRestart:disabled { background: #555; cursor: not-allowed; }
   #btnAllRam { background: #28a745; margin-left: 10px; }
   #btnAllRam:disabled { background: #555; cursor: not-allowed; }
-  #message { margin-top: 10px; }
+  #message, #addressMessage { margin-top: 10px; }
   .error { color: #e55353; }
   .success { color: #5bc85b; }
   @media (max-width: 800px) {
@@ -49,6 +49,12 @@
     </div>
   </section>
   <section id="settings-panel">
+    <h2>Server Address</h2>
+    <label for="server_address">Server Address (domain or IP players use)</label>
+    <input type="text" id="server_address" name="server_address" placeholder="play.example.com" />
+    <button type="button" id="btnSaveAddress">Save Address</button>
+    <div id="addressMessage"></div>
+
     <h2>Server Properties & RAM</h2>
     <form id="propertiesForm">
       <!-- properties inputs dynamically inserted here -->
@@ -62,7 +68,6 @@
 </div>
 
 <script>
-  // --- CHANGE THIS to your server backend origin ---
   const API_ORIGIN = "http://192.168.1.43:8080";
   const WS_URL = `ws://192.168.1.43:8080/ws`;
 
@@ -74,8 +79,10 @@
   const btnRestart = document.getElementById("btnRestart");
   const btnAllRam = document.getElementById("btnAllRam");
   const messageEl = document.getElementById("message");
+  const serverAddressInput = document.getElementById("server_address");
+  const btnSaveAddress = document.getElementById("btnSaveAddress");
+  const addressMessage = document.getElementById("addressMessage");
 
-  // Known Minecraft server properties metadata
   const knownProperties = {
     "max-players": { type: "number", min: 1, max: 100, label: "Max Players" },
     "motd": { type: "text", label: "MOTD" },
@@ -89,13 +96,11 @@
 
   let ws;
 
-  // Helper to append console output
   function appendOutput(text) {
     consoleOutput.textContent += text;
     consoleOutput.scrollTop = consoleOutput.scrollHeight;
   }
 
-  // Connect WebSocket for live console
   function connectWS() {
     ws = new WebSocket(WS_URL);
 
@@ -105,6 +110,8 @@
       sendBtn.disabled = false;
       btnRestart.disabled = false;
       btnAllRam.disabled = false;
+      btnSaveAddress.disabled = false;
+      serverAddressInput.disabled = false;
       cmdInput.focus();
     };
     ws.onmessage = e => {
@@ -116,6 +123,8 @@
       sendBtn.disabled = true;
       btnRestart.disabled = true;
       btnAllRam.disabled = true;
+      btnSaveAddress.disabled = true;
+      serverAddressInput.disabled = true;
       setTimeout(connectWS, 3000);
     };
     ws.onerror = () => {
@@ -124,7 +133,6 @@
     };
   }
 
-  // Send console commands
   sendBtn.onclick = () => {
     const cmd = cmdInput.value.trim();
     if (cmd && ws.readyState === WebSocket.OPEN) {
@@ -139,7 +147,6 @@
     }
   });
 
-  // Load server.properties and RAM setting
   async function loadProperties() {
     messageEl.textContent = "";
     messageEl.className = "";
@@ -148,28 +155,26 @@
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const props = await res.json();
 
-      // Clean old property inputs except RAM controls (which we handle separately)
+      // Remove old property inputs except the RAM input controls
       for (const elem of [...propertiesForm.children]) {
-        if (elem.tagName === "LABEL" || (elem.tagName === "INPUT" && elem.id !== "_ram_mb")) {
+        if (elem.tagName === "LABEL" || (elem.tagName === "INPUT" && elem.id !== "_ram_mb") || elem.tagName === "SELECT") {
           propertiesForm.removeChild(elem);
         }
       }
 
-      // Insert inputs for known properties excluding RAM and _ram_mb (handled separately)
       for (const [key, val] of Object.entries(props)) {
-        if (key === "_ram_mb") continue; // Special RAM field
+        if (key === "_ram_mb") continue;
+
         if (!(key in knownProperties)) continue;
 
         const fieldDef = knownProperties[key];
         const label = document.createElement("label");
         label.htmlFor = key;
         label.textContent = fieldDef.label || key;
-        const input = fieldDef.type === "select" ? document.createElement("select") : document.createElement("input");
 
-        input.id = key;
-        input.name = key;
-
+        let input;
         if (fieldDef.type === "select") {
+          input = document.createElement("select");
           for (const optionVal of fieldDef.options) {
             const option = document.createElement("option");
             option.value = optionVal;
@@ -178,24 +183,25 @@
             input.appendChild(option);
           }
         } else if (fieldDef.type === "number") {
+          input = document.createElement("input");
           input.type = "number";
           if (fieldDef.min !== undefined) input.min = fieldDef.min;
           if (fieldDef.max !== undefined) input.max = fieldDef.max;
           input.value = val;
         } else {
+          input = document.createElement("input");
           input.type = "text";
           input.value = val;
         }
 
+        input.id = key;
+        input.name = key;
         input.required = true;
 
-        // Insert before RAM controls (_ram_mb)
         const ramInput = document.getElementById("_ram_mb");
         propertiesForm.insertBefore(label, ramInput);
         propertiesForm.insertBefore(input, ramInput);
       }
-
-      // Set RAM input value
       document.getElementById("_ram_mb").value = props["_ram_mb"] || "1024";
 
     } catch (err) {
@@ -204,7 +210,6 @@
     }
   }
 
-  // Submit updated properties + RAM
   async function submitProperties() {
     messageEl.textContent = "";
     messageEl.className = "";
@@ -215,7 +220,7 @@
         data[inp.name] = inp.value;
       }
     }
-    // Force online-mode=false for offline server (remove if you want user control)
+    // Force offline mode
     data["online-mode"] = "false";
 
     try {
@@ -237,7 +242,6 @@
     }
   }
 
-  // Restart server without changing properties
   async function restartServer() {
     messageEl.textContent = "";
     messageEl.className = "";
@@ -258,39 +262,76 @@
     }
   }
 
-  // Detect total RAM (in MB) on client device using JS. Support is limited, use navigator.deviceMemory when available.
-  // Fallback to 4000 MB if not found.
   function getClientRamMB() {
-    // navigator.deviceMemory gives approx GB of RAM
     if ('deviceMemory' in navigator) {
-      return Math.floor(navigator.deviceMemory * 1024); // Convert GB to MB
+      return Math.floor(navigator.deviceMemory * 1024);
     }
-    return 4000; // fallback approx 4GB
+    return 4000;
   }
 
-  // Set RAM input to almost all RAM minus 1 GB margin
   function useAllRam() {
     let totalRam = getClientRamMB();
-    // Leave 1024 MB free for system
     const safeRam = totalRam > 2048 ? (totalRam - 1024) : totalRam;
     let current = document.getElementById("_ram_mb");
     current.value = safeRam;
   }
 
-  // Hook form submit
+  btnRestart.onclick = restartServer;
+  btnAllRam.onclick = () => useAllRam();
+
+  // Server Address handlers
+
+  async function loadServerAddress() {
+    try {
+      const res = await fetch(`${API_ORIGIN}/api/server_address`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      serverAddressInput.value = data.address || "";
+      btnSaveAddress.disabled = false;
+      serverAddressInput.disabled = false;
+    } catch (e) {
+      addressMessage.textContent = "Failed to load server address: " + e.message;
+      addressMessage.className = "error";
+    }
+  }
+
+  async function saveServerAddress() {
+    addressMessage.textContent = "";
+    addressMessage.className = "";
+    try {
+      btnSaveAddress.disabled = true;
+      const res = await fetch(`${API_ORIGIN}/api/server_address`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address: serverAddressInput.value.trim() }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        addressMessage.textContent = "Server address saved!";
+        addressMessage.className = "success";
+      } else {
+        throw new Error(data.error || `HTTP ${res.status}`);
+      }
+    } catch (e) {
+      addressMessage.textContent = "Failed to save server address: " + e.message;
+      addressMessage.className = "error";
+    } finally {
+      btnSaveAddress.disabled = false;
+    }
+  }
+
+  btnSaveAddress.onclick = saveServerAddress;
+
   propertiesForm.addEventListener("submit", e => {
     e.preventDefault();
     submitProperties();
   });
 
-  btnRestart.onclick = restartServer;
-  btnAllRam.onclick = () => {
-    useAllRam();
-  };
+  // Initialization
 
-  // Initialize UI
   connectWS();
   loadProperties();
+  loadServerAddress();
 </script>
 </body>
 </html>
