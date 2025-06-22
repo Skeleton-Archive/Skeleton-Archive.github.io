@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Minecraft Server Full Control</title>
+<style>
+  body { margin:0; font-family: monospace; background: #121212; color: white; display: flex; flex-direction: column; height: 100vh; }
+  header { background: #222; padding: 10px; font-size: 18px; text-align: center; border-bottom: 1px solid #444; }
+  #content { flex: 1; display: flex; overflow: hidden; }
+  #console-panel, #settings-panel { flex: 1; display: flex; flex-direction: column; padding: 10px; }
+  h2 { margin-top: 0; }
+  #console-output { flex: 1; background: #222; padding: 10px; overflow-y: auto; white-space: pre-wrap; border-radius: 4px; }
+  #console-input { display: flex; margin-top: 10px; }
+  #cmdInput { flex: 1; padding: 8px; font-size: 16px; border: none; border-radius: 4px 0 0 4px; }
+  #sendBtn { padding: 8px 15px; font-size: 16px; cursor: pointer; background: #0077ff; border: none; border-radius: 0 4px 4px 0; color: white; }
+  #sendBtn:disabled { background: #555; cursor: not-allowed; }
+  #status { margin-bottom: 10px; }
+  form label { display: block; margin: 10px 0 5px; }
+  form input[type=text], form select, input[type=number] {
+    width: 100%; padding: 6px; font-size: 14px;
+    border-radius: 4px; border: 1px solid #444; background: #121212; color: white;
+  }
+  #btnRestart, #btnAllRam {
+    margin-top: 20px; padding: 10px; font-size: 16px; cursor: pointer; border: none; border-radius: 4px; color: white;
+  }
+  #btnRestart { background: #d9534f; }
+  #btnRestart:disabled { background: #555; cursor: not-allowed; }
+  #btnAllRam { background: #28a745; margin-left: 10px; }
+  #btnAllRam:disabled { background: #555; cursor: not-allowed; }
+  #message { margin-top: 10px; }
+  .error { color: #e55353; }
+  .success { color: #5bc85b; }
+  @media (max-width: 800px) {
+    #content { flex-direction: column; }
+    #console-panel, #settings-panel { flex: none; height: 50%; }
+  }
+</style>
+</head>
+<body>
+<header>Minecraft Server Full Control Panel</header>
+<div id="content">
+  <section id="console-panel">
+    <h2>Console</h2>
+    <div id="status">Status: <span id="connStatus">Disconnected</span></div>
+    <pre id="console-output"></pre>
+    <div id="console-input">
+      <input type="text" id="cmdInput" placeholder="Enter command..." disabled autocomplete="off" />
+      <button id="sendBtn" disabled>Send</button>
+    </div>
+  </section>
+  <section id="settings-panel">
+    <h2>Server Properties & RAM</h2>
+    <form id="propertiesForm">
+      <!-- properties inputs dynamically inserted here -->
+      <label for="_ram_mb">Max RAM (MB)</label>
+      <input type="number" id="_ram_mb" name="_ram_mb" min="256" max="65536" step="128" required />
+      <button type="button" id="btnAllRam" title="Use almost all system RAM">Use All RAM</button>
+    </form>
+    <button id="btnRestart" disabled>Restart Server</button>
+    <div id="message"></div>
+  </section>
+</div>
+
+<script>
+  // --- CHANGE THIS to your server backend origin ---
+  const API_ORIGIN = "http://192.168.1.43:8080";
+  const WS_URL = `ws://192.168.1.43:8080/ws`;
+
+  const connStatusEl = document.getElementById("connStatus");
+  const consoleOutput = document.getElementById("console-output");
+  const cmdInput = document.getElementById("cmdInput");
+  const sendBtn = document.getElementById("sendBtn");
+  const propertiesForm = document.getElementById("propertiesForm");
+  const btnRestart = document.getElementById("btnRestart");
+  const btnAllRam = document.getElementById("btnAllRam");
+  const messageEl = document.getElementById("message");
+
+  // Known Minecraft server properties metadata
+  const knownProperties = {
+    "max-players": { type: "number", min: 1, max: 100, label: "Max Players" },
+    "motd": { type: "text", label: "MOTD" },
+    "online-mode": { type: "select", options: ["true","false"], label: "Online Mode" },
+    "level-name": { type: "text", label: "Level Name" },
+    "enable-command-block": { type: "select", options: ["true","false"], label: "Enable Command Blocks" },
+    "spawn-monsters": { type: "select", options: ["true","false"], label: "Spawn Monsters" },
+    "difficulty": { type: "select", options: ["peaceful","easy","normal","hard"], label: "Difficulty" },
+    "view-distance": { type: "number", min: 3, max: 32, label: "View Distance" },
+  };
+
+  let ws;
+
+  // Helper to append console output
+  function appendOutput(text) {
+    consoleOutput.textContent += text;
+    consoleOutput.scrollTop = consoleOutput.scrollHeight;
+  }
+
+  // Connect WebSocket for live console
+  function connectWS() {
+    ws = new WebSocket(WS_URL);
+
+    ws.onopen = () => {
+      connStatusEl.textContent = "Connected";
+      cmdInput.disabled = false;
+      sendBtn.disabled = false;
+      btnRestart.disabled = false;
+      btnAllRam.disabled = false;
+      cmdInput.focus();
+    };
+    ws.onmessage = e => {
+      appendOutput(e.data);
+    };
+    ws.onclose = () => {
+      connStatusEl.textContent = "Disconnected. Reconnecting in 3s...";
+      cmdInput.disabled = true;
+      sendBtn.disabled = true;
+      btnRestart.disabled = true;
+      btnAllRam.disabled = true;
+      setTimeout(connectWS, 3000);
+    };
+    ws.onerror = () => {
+      connStatusEl.textContent = "Connection error";
+      ws.close();
+    };
+  }
+
+  // Send console commands
+  sendBtn.onclick = () => {
+    const cmd = cmdInput.value.trim();
+    if (cmd && ws.readyState === WebSocket.OPEN) {
+      ws.send(cmd);
+      cmdInput.value = "";
+    }
+  };
+  cmdInput.addEventListener("keydown", e => {
+    if (e.key === "Enter") {
+      sendBtn.click();
+      e.preventDefault();
+    }
+  });
+
+  // Load server.properties and RAM setting
+  async function loadProperties() {
+    messageEl.textContent = "";
+    messageEl.className = "";
+    try {
+      const res = await fetch(`${API_ORIGIN}/api/properties`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const props = await res.json();
+
+      // Clean old property inputs except RAM controls (which we handle separately)
+      for (const elem of [...propertiesForm.children]) {
+        if (elem.tagName === "LABEL" || (elem.tagName === "INPUT" && elem.id !== "_ram_mb")) {
+          propertiesForm.removeChild(elem);
+        }
+      }
+
+      // Insert inputs for known properties excluding RAM and _ram_mb (handled separately)
+      for (const [key, val] of Object.entries(props)) {
+        if (key === "_ram_mb") continue; // Special RAM field
+        if (!(key in knownProperties)) continue;
+
+        const fieldDef = knownProperties[key];
+        const label = document.createElement("label");
+        label.htmlFor = key;
+        label.textContent = fieldDef.label || key;
+        const input = fieldDef.type === "select" ? document.createElement("select") : document.createElement("input");
+
+        input.id = key;
+        input.name = key;
+
+        if (fieldDef.type === "select") {
+          for (const optionVal of fieldDef.options) {
+            const option = document.createElement("option");
+            option.value = optionVal;
+            option.textContent = optionVal;
+            if (optionVal === val) option.selected = true;
+            input.appendChild(option);
+          }
+        } else if (fieldDef.type === "number") {
+          input.type = "number";
+          if (fieldDef.min !== undefined) input.min = fieldDef.min;
+          if (fieldDef.max !== undefined) input.max = fieldDef.max;
+          input.value = val;
+        } else {
+          input.type = "text";
+          input.value = val;
+        }
+
+        input.required = true;
+
+        // Insert before RAM controls (_ram_mb)
+        const ramInput = document.getElementById("_ram_mb");
+        propertiesForm.insertBefore(label, ramInput);
+        propertiesForm.insertBefore(input, ramInput);
+      }
+
+      // Set RAM input value
+      document.getElementById("_ram_mb").value = props["_ram_mb"] || "1024";
+
+    } catch (err) {
+      messageEl.textContent = "Failed to load server properties: " + err.message;
+      messageEl.className = "error";
+    }
+  }
+
+  // Submit updated properties + RAM
+  async function submitProperties() {
+    messageEl.textContent = "";
+    messageEl.className = "";
+
+    const data = {};
+    for (const inp of propertiesForm.elements) {
+      if (inp.name) {
+        data[inp.name] = inp.value;
+      }
+    }
+    // Force online-mode=false for offline server (remove if you want user control)
+    data["online-mode"] = "false";
+
+    try {
+      const res = await fetch(`${API_ORIGIN}/api/properties`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      const result = await res.json();
+      if (res.ok) {
+        messageEl.textContent = result.message || "Properties updated and server restarted.";
+        messageEl.className = "success";
+      } else {
+        throw new Error(result.error || `HTTP ${res.status}`);
+      }
+    } catch (err) {
+      messageEl.textContent = "Failed to save properties: " + err.message;
+      messageEl.className = "error";
+    }
+  }
+
+  // Restart server without changing properties
+  async function restartServer() {
+    messageEl.textContent = "";
+    messageEl.className = "";
+    try {
+      const res = await fetch(`${API_ORIGIN}/api/restart`, {
+        method: "POST"
+      });
+      const result = await res.json();
+      if (res.ok) {
+        messageEl.textContent = result.message || "Server restarted.";
+        messageEl.className = "success";
+      } else {
+        throw new Error(result.error || `HTTP ${res.status}`);
+      }
+    } catch (err) {
+      messageEl.textContent = "Failed to restart server: " + err.message;
+      messageEl.className = "error";
+    }
+  }
+
+  // Detect total RAM (in MB) on client device using JS. Support is limited, use navigator.deviceMemory when available.
+  // Fallback to 4000 MB if not found.
+  function getClientRamMB() {
+    // navigator.deviceMemory gives approx GB of RAM
+    if ('deviceMemory' in navigator) {
+      return Math.floor(navigator.deviceMemory * 1024); // Convert GB to MB
+    }
+    return 4000; // fallback approx 4GB
+  }
+
+  // Set RAM input to almost all RAM minus 1 GB margin
+  function useAllRam() {
+    let totalRam = getClientRamMB();
+    // Leave 1024 MB free for system
+    const safeRam = totalRam > 2048 ? (totalRam - 1024) : totalRam;
+    let current = document.getElementById("_ram_mb");
+    current.value = safeRam;
+  }
+
+  // Hook form submit
+  propertiesForm.addEventListener("submit", e => {
+    e.preventDefault();
+    submitProperties();
+  });
+
+  btnRestart.onclick = restartServer;
+  btnAllRam.onclick = () => {
+    useAllRam();
+  };
+
+  // Initialize UI
+  connectWS();
+  loadProperties();
+</script>
+</body>
+</html>
