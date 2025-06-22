@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>Minecraft Server Full Control</title>
+<title>Minecraft Server Remote Control</title>
 <style>
   body { margin:0; font-family: monospace; background: #121212; color: white; display: flex; flex-direction: column; height: 100vh; }
   header { background: #222; padding: 10px; font-size: 18px; text-align: center; border-bottom: 1px solid #444; }
@@ -44,7 +44,7 @@
     <div id="status">Status: <span id="connStatus">Disconnected</span></div>
     <pre id="console-output"></pre>
     <div id="console-input">
-      <input type="text" id="cmdInput" placeholder="Enter command..." disabled autocomplete="off" />
+      <input type="text" id="cmdInput" placeholder="Enter command..." disabled autocomplete="off"/>
       <button id="sendBtn" disabled>Send</button>
     </div>
   </section>
@@ -68,6 +68,7 @@
 </div>
 
 <script>
+  // IMPORTANT: set your public IP or domain here accessible by clients:
   const API_ORIGIN = "http://192.168.1.43:8080";
   const WS_URL = `ws://192.168.1.43:8080/ws`;
 
@@ -203,7 +204,6 @@
         propertiesForm.insertBefore(input, ramInput);
       }
       document.getElementById("_ram_mb").value = props["_ram_mb"] || "1024";
-
     } catch (err) {
       messageEl.textContent = "Failed to load server properties: " + err.message;
       messageEl.className = "error";
@@ -220,7 +220,8 @@
         data[inp.name] = inp.value;
       }
     }
-    // Force offline mode
+
+    // Force offline mode to false
     data["online-mode"] = "false";
 
     try {
@@ -246,9 +247,7 @@
     messageEl.textContent = "";
     messageEl.className = "";
     try {
-      const res = await fetch(`${API_ORIGIN}/api/restart`, {
-        method: "POST"
-      });
+      const res = await fetch(`${API_ORIGIN}/api/restart`, { method: "POST" });
       const result = await res.json();
       if (res.ok) {
         messageEl.textContent = result.message || "Server restarted.";
@@ -263,7 +262,7 @@
   }
 
   function getClientRamMB() {
-    if ('deviceMemory' in navigator) {
+    if ("deviceMemory" in navigator) {
       return Math.floor(navigator.deviceMemory * 1024);
     }
     return 4000;
@@ -271,9 +270,9 @@
 
   function useAllRam() {
     let totalRam = getClientRamMB();
-    const safeRam = totalRam > 2048 ? (totalRam - 1024) : totalRam;
-    let current = document.getElementById("_ram_mb");
-    current.value = safeRam;
+    const safeRam = totalRam > 2048 ? totalRam - 1024 : totalRam;
+    const ramInput = document.getElementById("_ram_mb");
+    ramInput.value = safeRam;
   }
 
   btnRestart.onclick = restartServer;
